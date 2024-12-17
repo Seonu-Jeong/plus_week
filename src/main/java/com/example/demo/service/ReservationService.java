@@ -54,7 +54,8 @@ public class ReservationService {
 
     // TODO: 3. N+1 문제
     public List<ReservationResponseDto> getReservations() {
-        List<Reservation> reservations = reservationRepository.findAll();
+        //List<Reservation> reservations = reservationRepository.findAll();
+        List<Reservation> reservations = reservationRepository.findAllReservationsJoinItemAndUser();
 
         return reservations.stream().map(reservation -> {
             User user = reservation.getUser();
