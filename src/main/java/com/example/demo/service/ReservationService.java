@@ -4,6 +4,7 @@ import com.example.demo.dto.ReservationResponseDto;
 import com.example.demo.entity.Item;
 import com.example.demo.entity.RentalLog;
 import com.example.demo.entity.Reservation;
+import com.example.demo.entity.ReservationStatus;
 import com.example.demo.entity.User;
 import com.example.demo.exception.ReservationConflictException;
 import com.example.demo.repository.ItemRepository;
@@ -117,29 +118,32 @@ public class ReservationService {
 
         Reservation reservation = reservationRepository.findReservationById(reservationId);
 
-        switch (status) {
-            case "APPROVED":
-                if (!"PENDING".equals(reservation.getStatus())) {
+        ReservationStatus curReservationStatus = reservation.getStatus();
+
+        switch (ReservationStatus.of(status)) {
+            case APPROVED:
+                if (!ReservationStatus.PENDING.equals(curReservationStatus)) {
                     throw new IllegalArgumentException("PENDING 상태만 APPROVED로 변경 가능합니다.");
                 }
                 break;
 
-            case "CANCELED":
-                if ("EXPIRED".equals(reservation.getStatus())) {
+            case CANCELED:
+                if (ReservationStatus.EXPIRED.equals(curReservationStatus)) {
                     throw new IllegalArgumentException("EXPIRED 상태인 예약은 취소할 수 없습니다.");
                 }
                 break;
 
-            case "EXPIRED":
-                if (!"PENDING".equals(reservation.getStatus())) {
+            case EXPIRED:
+                if (!ReservationStatus.PENDING.equals(curReservationStatus)) {
                     throw new IllegalArgumentException("PENDING 상태만 EXPIRED로 변경 가능합니다.");
                 }
-                reservation.updateStatus("EXPIRED");
                 break;
 
             default:
                 throw new IllegalArgumentException("올바르지 않은 상태: " + status);
         }
+
+        reservation.updateStatus(status);
 
         return true;
     }
