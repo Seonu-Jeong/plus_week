@@ -8,6 +8,7 @@ import com.example.demo.entity.User;
 import com.example.demo.exception.ReservationConflictException;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.ReservationRepository;
+import com.example.demo.repository.ReservationRepositoryQuery;
 import com.example.demo.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,16 +24,19 @@ public class ReservationService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final RentalLogService rentalLogService;
+    private final ReservationRepositoryQuery reservationRepositoryQuery;
 
     public ReservationService(ReservationRepository reservationRepository,
                               ItemRepository itemRepository,
                               UserRepository userRepository,
-                              RentalLogService rentalLogService) {
+                              RentalLogService rentalLogService,
+		ReservationRepositoryQuery reservationRepositoryQuery) {
         this.reservationRepository = reservationRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.rentalLogService = rentalLogService;
-    }
+		this.reservationRepositoryQuery = reservationRepositoryQuery;
+	}
 
     // TODO: 1. 트랜잭션 이해
     @Transactional
@@ -74,7 +78,10 @@ public class ReservationService {
     // TODO: 5. QueryDSL 검색 개선
     public List<ReservationResponseDto> searchAndConvertReservations(Long userId, Long itemId) {
 
-        List<Reservation> reservations = searchReservations(userId, itemId);
+        //List<Reservation> reservations = searchReservations(userId, itemId);
+
+        List<Reservation> reservations = reservationRepositoryQuery.
+            findReservationUserIdAndItemId(userId, itemId);
 
         return convertToDto(reservations);
     }
