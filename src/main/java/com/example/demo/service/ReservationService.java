@@ -114,7 +114,8 @@ public class ReservationService {
     // TODO: 7. 리팩토링
     @Transactional
     public Boolean updateReservationStatus(Long reservationId, String status) {
-        Reservation reservation = reservationRepository.findById(reservationId).orElseThrow(() -> new IllegalArgumentException("해당 ID에 맞는 데이터가 존재하지 않습니다."));
+
+        Reservation reservation = reservationRepository.findReservationById(reservationId);
 
         switch (status) {
             case "APPROVED":
