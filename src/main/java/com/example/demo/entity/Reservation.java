@@ -25,12 +25,13 @@ public class Reservation {
 
     private LocalDateTime endAt;
 
-    private String status; // PENDING, APPROVED, CANCELED, EXPIRED
+    @Enumerated(EnumType.STRING)
+    private ReservationStatus status; // PENDING, APPROVED, CANCELED, EXPIRED
 
     public Reservation(Item item, User user, String status, LocalDateTime startAt, LocalDateTime endAt) {
         this.item = item;
         this.user = user;
-        this.status = status;
+        this.status = ReservationStatus.of(status);
         this.startAt = startAt;
         this.endAt = endAt;
     }
@@ -38,6 +39,6 @@ public class Reservation {
     public Reservation() {}
 
     public void updateStatus(String status) {
-        this.status = status;
+        this.status = ReservationStatus.of(status);
     }
 }

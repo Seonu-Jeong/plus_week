@@ -4,10 +4,12 @@ import com.example.demo.dto.ReservationResponseDto;
 import com.example.demo.entity.Item;
 import com.example.demo.entity.RentalLog;
 import com.example.demo.entity.Reservation;
+import com.example.demo.entity.ReservationStatus;
 import com.example.demo.entity.User;
 import com.example.demo.exception.ReservationConflictException;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.ReservationRepository;
+import com.example.demo.repository.ReservationRepositoryQuery;
 import com.example.demo.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,18 +25,22 @@ public class ReservationService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final RentalLogService rentalLogService;
+    private final ReservationRepositoryQuery reservationRepositoryQuery;
 
     public ReservationService(ReservationRepository reservationRepository,
                               ItemRepository itemRepository,
                               UserRepository userRepository,
-                              RentalLogService rentalLogService) {
+                              RentalLogService rentalLogService,
+		ReservationRepositoryQuery reservationRepositoryQuery) {
         this.reservationRepository = reservationRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.rentalLogService = rentalLogService;
-    }
+		this.reservationRepositoryQuery = reservationRepositoryQuery;
+	}
 
     // TODO: 1. 트랜잭션 이해
+    @Transactional
     public void createReservation(Long itemId, Long userId, LocalDateTime startAt, LocalDateTime endAt) {
         // 쉽게 데이터를 생성하려면 아래 유효성검사 주석 처리
         List<Reservation> haveReservations = reservationRepository.findConflictingReservations(itemId, startAt, endAt);
@@ -53,7 +59,8 @@ public class ReservationService {
 
     // TODO: 3. N+1 문제
     public List<ReservationResponseDto> getReservations() {
-        List<Reservation> reservations = reservationRepository.findAll();
+        //List<Reservation> reservations = reservationRepository.findAll();
+        List<Reservation> reservations = reservationRepository.findAllReservationsJoinItemAndUser();
 
         return reservations.stream().map(reservation -> {
             User user = reservation.getUser();
@@ -72,7 +79,10 @@ public class ReservationService {
     // TODO: 5. QueryDSL 검색 개선
     public List<ReservationResponseDto> searchAndConvertReservations(Long userId, Long itemId) {
 
-        List<Reservation> reservations = searchReservations(userId, itemId);
+        //List<Reservation> reservations = searchReservations(userId, itemId);
+
+        List<Reservation> reservations = reservationRepositoryQuery.
+            findReservationUserIdAndItemId(userId, itemId);
 
         return convertToDto(reservations);
     }
@@ -104,26 +114,37 @@ public class ReservationService {
 
     // TODO: 7. 리팩토링
     @Transactional
-    public void updateReservationStatus(Long reservationId, String status) {
-        Reservation reservation = reservationRepository.findById(reservationId).orElseThrow(() -> new IllegalArgumentException("해당 ID에 맞는 데이터가 존재하지 않습니다."));
+    public Boolean updateReservationStatus(Long reservationId, String status) {
 
-        if ("APPROVED".equals(status)) {
-            if (!"PENDING".equals(reservation.getStatus())) {
-                throw new IllegalArgumentException("PENDING 상태만 APPROVED로 변경 가능합니다.");
-            }
-            reservation.updateStatus("APPROVED");
-        } else if ("CANCELED".equals(status)) {
-            if ("EXPIRED".equals(reservation.getStatus())) {
-                throw new IllegalArgumentException("EXPIRED 상태인 예약은 취소할 수 없습니다.");
-            }
-            reservation.updateStatus("CANCELED");
-        } else if ("EXPIRED".equals(status)) {
-            if (!"PENDING".equals(reservation.getStatus())) {
-                throw new IllegalArgumentException("PENDING 상태만 EXPIRED로 변경 가능합니다.");
-            }
-            reservation.updateStatus("EXPIRED");
-        } else {
-            throw new IllegalArgumentException("올바르지 않은 상태: " + status);
+        Reservation reservation = reservationRepository.findReservationById(reservationId);
+
+        ReservationStatus curReservationStatus = reservation.getStatus();
+
+        switch (ReservationStatus.of(status)) {
+            case APPROVED:
+                if (!ReservationStatus.PENDING.equals(curReservationStatus)) {
+                    throw new IllegalArgumentException("PENDING 상태만 APPROVED로 변경 가능합니다.");
+                }
+                break;
+
+            case CANCELED:
+                if (ReservationStatus.EXPIRED.equals(curReservationStatus)) {
+                    throw new IllegalArgumentException("EXPIRED 상태인 예약은 취소할 수 없습니다.");
+                }
+                break;
+
+            case EXPIRED:
+                if (!ReservationStatus.PENDING.equals(curReservationStatus)) {
+                    throw new IllegalArgumentException("PENDING 상태만 EXPIRED로 변경 가능합니다.");
+                }
+                break;
+
+            default:
+                throw new IllegalArgumentException("올바르지 않은 상태: " + status);
         }
+
+        reservation.updateStatus(status);
+
+        return true;
     }
 }
